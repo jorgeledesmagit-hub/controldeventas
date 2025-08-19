@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Control de Ventas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; }
+        .container { max-width: 900px; }
+        .card { box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+        .table thead th { background: #e9ecef; }
+        .form-section { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 24px; }
+        .badge-comision { font-size: 0.9em; }
+    </style>
+</head>
+<body>
+<div class="container py-4">
+    <h1 class="mb-4 text-center text-primary">Sistema Control de Ventas</h1>
+    <div class="d-flex justify-content-end mb-2">
+        <span id="adminStatus" class="me-2"></span>
+        <button class="btn btn-outline-secondary btn-sm" id="btnAdminLogin">Acceso Administrador</button>
+        <button class="btn btn-outline-danger btn-sm ms-2 d-none" id="btnAdminLogout">Cerrar Sesión Admin</button>
+    </div>
+    <!-- Formulario de registro de venta -->
+    <div class="form-section mb-4">
+        <h4>Registrar Venta</h4>
+        <form id="ventaForm" class="row g-3">
+            <div class="col-md-4">
+                <label for="monto" class="form-label">Monto ($)</label>
+                <input type="number" min="0" step="0.01" class="form-control" id="monto" required>
+            </div>
+            <div class="col-md-4">
+                <label for="fecha" class="form-label">Fecha</label>
+                <input type="date" class="form-control" id="fecha" required>
+            </div>
+            <div class="col-md-4">
+                <label for="tarjeta" class="form-label">Método/Tarjeta</label>
+                <select class="form-select" id="tarjeta" required></select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Comisión (%)</label>
+                <input type="text" class="form-control" id="comision" readonly>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Neto ($)</label>
+                <input type="text" class="form-control" id="neto" readonly>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-success w-100">Registrar Venta</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Gestión de tarjetas -->
+    <div class="form-section mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h4 class="mb-0">Tarjetas y Métodos de Pago</h4>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTarjeta" id="btnNuevaTarjeta" disabled>Agregar Tarjeta/Método</button>
+        </div>
+        <table class="table table-sm table-bordered align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Comisión (%)</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaTarjetas"></tbody>
+        </table>
+    </div>
+
+    <!-- Resumen de ventas -->
+    <div class="form-section">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h4 class="mb-0">Ventas</h4>
+            <div>
+                <input type="month" id="filtroMes" class="form-control form-control-sm d-inline-block" style="width:auto;">
+                <button class="btn btn-outline-secondary btn-sm ms-2" id="btnExportar">Exportar CSV</button>
+            </div>
+        </div>
+        <table class="table table-bordered table-hover align-middle mb-2">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Monto</th>
+                    <th>Método/Tarjeta</th>
+                    <th>Comisión</th>
+                    <th>Neto</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaVentas"></tbody>
+            <tfoot>
+                <tr class="table-primary">
+                    <th>Total</th>
+                    <th id="totalBruto"></th>
+                    <th></th>
+                    <th id="totalComision"></th>
+                    <th id="totalNeto"></th>
+                    <th></th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- Gestión de proveedores -->
+    <div class="form-section mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h4 class="mb-0">Tipos de Proveedores</h4>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalProveedor" id="btnNuevoProveedor" disabled>Agregar Tipo de Proveedor</button>
+        </div>
+        <table class="table table-sm table-bordered align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaProveedores"></tbody>
+        </table>
+    </div>
+
+    <!-- Registro de pagos a proveedores -->
+    <div class="form-section mb-4">
+        <h4>Registrar Pago a Proveedor</h4>
+        <form id="pagoForm" class="row g-3">
+            <div class="col-md-3">
+                <label for="montoPago" class="form-label">Monto ($)</label>
+                <input type="number" min="0" step="0.01" class="form-control" id="montoPago" required>
+            </div>
+            <div class="col-md-3">
+                <label for="fechaPago" class="form-label">Fecha</label>
+                <input type="date" class="form-control" id="fechaPago" required>
+            </div>
+            <div class="col-md-3">
+                <label for="proveedor" class="form-label">Tipo de Proveedor</label>
+                <select class="form-select" id="proveedor" required></select>
+            </div>
+            <div class="col-md-3">
+                <label for="descripcionPago" class="form-label">Descripción</label>
+                <input type="text" class="form-control" id="descripcionPago" placeholder="Concepto del pago">
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-warning">Registrar Pago</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Historial de pagos a proveedores -->
+    <div class="form-section">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h4 class="mb-0">Pagos a Proveedores</h4>
+            <div>
+                <input type="month" id="filtroMesPagos" class="form-control form-control-sm d-inline-block" style="width:auto;">
+                <button class="btn btn-outline-secondary btn-sm ms-2" id="btnExportarPagos">Exportar CSV</button>
+            </div>
+        </div>
+        <table class="table table-bordered table-hover align-middle mb-2">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Monto</th>
+                    <th>Tipo de Proveedor</th>
+                    <th>Descripción</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaPagos"></tbody>
+            <tfoot>
+                <tr class="table-warning">
+                    <th>Total Pagos</th>
+                    <th id="totalPagos"></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- Resumen Financiero -->
+    <div class="form-section">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h4 class="mb-0">Resumen Financiero</h4>
+            <div>
+                <input type="month" id="filtroMesResumen" class="form-control form-control-sm d-inline-block" style="width:auto;">
+                <button class="btn btn-outline-success btn-sm ms-2" id="btnExportarResumen">Exportar Resumen CSV</button>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Ganancias Netas</h5>
+                        <h3 id="gananciasNetas">$0.00</h3>
+                        <small>Ventas - Comisiones</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-warning text-dark">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Pagos Proveedores</h5>
+                        <h3 id="totalPagosResumen">$0.00</h3>
+                        <small>Egresos del mes</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Balance Final</h5>
+                        <h3 id="balanceFinal">$0.00</h3>
+                        <small>Ganancias - Pagos</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <table class="table table-bordered table-sm">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Concepto</th>
+                        <th>Monto</th>
+                        <th>Detalle</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Ventas Brutas</td>
+                        <td id="ventasBrutasResumen">$0.00</td>
+                        <td>Total de ventas registradas</td>
+                    </tr>
+                    <tr>
+                        <td>Comisiones</td>
+                        <td id="comisionesResumen">$0.00</td>
+                        <td>Comisiones por método de pago</td>
+                    </tr>
+                    <tr class="table-primary">
+                        <td><strong>Ganancias Netas</strong></td>
+                        <td id="gananciasNetasDetalle">$0.00</td>
+                        <td>Ventas - Comisiones</td>
+                    </tr>
+                    <tr>
+                        <td>Pagos a Proveedores</td>
+                        <td id="pagosProveedoresResumen">$0.00</td>
+                        <td>Total de pagos realizados</td>
+                    </tr>
+                    <tr class="table-success">
+                        <td><strong>Balance Final</strong></td>
+                        <td id="balanceFinalDetalle">$0.00</td>
+                        <td>Ganancias Netas - Pagos</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para agregar/editar tarjeta -->
+<div class="modal fade" id="modalTarjeta" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="formTarjeta">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalTarjetaLabel">Agregar/Editar Tarjeta o Método</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="tarjetaId">
+          <div class="mb-3">
+            <label for="nombreTarjeta" class="form-label">Nombre</label>
+            <input type="text" class="form-control" id="nombreTarjeta" required>
+          </div>
+          <div class="mb-3">
+            <label for="comisionTarjeta" class="form-label">Comisión (%)</label>
+            <input type="number" min="0" step="0.01" class="form-control" id="comisionTarjeta" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Guardar</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para login admin -->
+<div class="modal fade" id="modalAdminLogin" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="formAdminLogin">
+        <div class="modal-header">
+          <h5 class="modal-title">Acceso Administrador</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="adminPassword" class="form-label">Contraseña</label>
+            <input type="password" class="form-control" id="adminPassword" required autocomplete="current-password">
+          </div>
+          <div id="adminLoginError" class="text-danger small"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Ingresar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para cambiar contraseña admin -->
+<div class="modal fade" id="modalAdminPass" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="formAdminPass">
+        <div class="modal-header">
+          <h5 class="modal-title">Cambiar Contraseña de Administrador</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="adminPassActual" class="form-label">Contraseña Actual</label>
+            <input type="password" class="form-control" id="adminPassActual" required autocomplete="current-password">
+          </div>
+          <div class="mb-3">
+            <label for="adminPassNueva" class="form-label">Nueva Contraseña</label>
+            <input type="password" class="form-control" id="adminPassNueva" required autocomplete="new-password">
+          </div>
+          <div id="adminPassError" class="text-danger small"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Cambiar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para agregar/editar proveedor -->
+<div class="modal fade" id="modalProveedor" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="formProveedor">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalProveedorLabel">Agregar/Editar Tipo de Proveedor</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="proveedorId">
+          <div class="mb-3">
+            <label for="nombreProveedor" class="form-label">Nombre</label>
+            <input type="text" class="form-control" id="nombreProveedor" required>
+          </div>
+          <div class="mb-3">
+            <label for="descripcionProveedor" class="form-label">Descripción</label>
+            <textarea class="form-control" id="descripcionProveedor" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Guardar</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// --- Utilidades LocalStorage ---
+const STORAGE_VENTAS = 'ventas_cafe_resto';
+const STORAGE_TARJETAS = 'tarjetas_cafe_resto';
+const STORAGE_ADMIN_PASS = 'admin_pass_cafe_resto';
+const STORAGE_PROVEEDORES = 'proveedores_cafe_resto';
+const STORAGE_PAGOS = 'pagos_cafe_resto';
+const ADMIN_DEFAULT_PASS = 'admin123';
+
+function getVentas() {
+    return JSON.parse(localStorage.getItem(STORAGE_VENTAS) || '[]');
+}
+function setVentas(ventas) {
+    localStorage.setItem(STORAGE_VENTAS, JSON.stringify(ventas));
+}
+function getTarjetas() {
+    return JSON.parse(localStorage.getItem(STORAGE_TARJETAS) || '[]');
+}
+function setTarjetas(tarjetas) {
+    localStorage.setItem(STORAGE_TARJETAS, JSON.stringify(tarjetas));
+}
+function getProveedores() {
+    return JSON.parse(localStorage.getItem(STORAGE_PROVEEDORES) || '[]');
+}
+function setProveedores(proveedores) {
+    localStorage.setItem(STORAGE_PROVEEDORES, JSON.stringify(proveedores));
+}
+function getPagos() {
+    return JSON.parse(localStorage.getItem(STORAGE_PAGOS) || '[]');
+}
+function setPagos(pagos) {
+    localStorage.setItem(STORAGE_PAGOS, JSON.stringify(pagos));
+}
+function getAdminPass() {
+    return localStorage.getItem(STORAGE_ADMIN_PASS) || ADMIN_DEFAULT_PASS;
+}
+function setAdminPass(pass) {
+    localStorage.setItem(STORAGE_ADMIN_PASS, pass);
+}
+
+// --- Estado de sesión admin ---
+let isAdmin = false;
+function updateAdminUI() {
+    document.getElementById('btnNuevaTarjeta').disabled = !isAdmin;
+    document.getElementById('btnNuevoProveedor').disabled = !isAdmin;
+    document.querySelectorAll('.btn-edit-tarjeta').forEach(btn => btn.disabled = !isAdmin);
+    document.querySelectorAll('.btn-del-tarjeta').forEach(btn => btn.disabled = !isAdmin);
+    document.querySelectorAll('.btn-edit-proveedor').forEach(btn => btn.disabled = !isAdmin);
+    document.querySelectorAll('.btn-del-proveedor').forEach(btn => btn.disabled = !isAdmin);
+    document.querySelectorAll('.btn-del-venta').forEach(btn => btn.disabled = !isAdmin);
+    document.querySelectorAll('.btn-del-pago').forEach(btn => btn.disabled = !isAdmin);
+    document.getElementById('btnAdminLogin').classList.toggle('d-none', isAdmin);
+    document.getElementById('btnAdminLogout').classList.toggle('d-none', !isAdmin);
+    document.getElementById('adminStatus').textContent = isAdmin ? 'Modo Administrador' : '';
+    document.getElementById('btnAdminLogout').classList.toggle('d-none', !isAdmin);
+    document.getElementById('btnAdminPass').classList.toggle('d-none', !isAdmin);
+}
+
+// --- Tarjetas por defecto si no existen ---
+function inicializarTarjetas() {
+    if (!localStorage.getItem(STORAGE_TARJETAS)) {
+        setTarjetas([
+            {id: 1, nombre: 'Efectivo', comision: 0},
+            {id: 2, nombre: 'Visa', comision: 3},
+            {id: 3, nombre: 'Mastercard', comision: 2.5},
+            {id: 4, nombre: 'MercadoPago', comision: 5},
+            {id: 5, nombre: 'Débito', comision: 1.5}
+        ]);
+    }
+}
+
+// --- Proveedores por defecto si no existen ---
+function inicializarProveedores() {
+    if (!localStorage.getItem(STORAGE_PROVEEDORES)) {
+        setProveedores([
+            {id: 1, nombre: 'Insumos', descripcion: 'Proveedor de insumos y materias primas'},
+            {id: 2, nombre: 'Servicios', descripcion: 'Servicios de limpieza, mantenimiento, etc.'},
+            {id: 3, nombre: 'Equipamiento', descripcion: 'Proveedor de equipos y maquinaria'},
+            {id: 4, nombre: 'Alquiler', descripcion: 'Pagos de alquiler de local'}
+        ]);
+    }
+}
+
+// --- Renderizar tarjetas en select y tabla ---
+function renderTarjetas() {
+    const tarjetas = getTarjetas();
+    const select = document.getElementById('tarjeta');
+    select.innerHTML = '';
+    tarjetas.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.nombre;
+        select.appendChild(opt);
+    });
+    // Tabla de tarjetas
+    const tbody = document.getElementById('tablaTarjetas');
+    tbody.innerHTML = '';
+    tarjetas.forEach(t => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${t.nombre}</td><td>${t.comision}%</td>
+            <td>
+                <button class='btn btn-sm btn-warning me-1 btn-edit-tarjeta' onclick='editarTarjeta(${t.id})' ${!isAdmin ? 'disabled' : ''}>Editar</button>
+                <button class='btn btn-sm btn-danger btn-del-tarjeta' onclick='eliminarTarjeta(${t.id})' ${!isAdmin ? 'disabled' : ''}>Eliminar</button>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+// --- Renderizar proveedores en select y tabla ---
+function renderProveedores() {
+    const proveedores = getProveedores();
+    const select = document.getElementById('proveedor');
+    select.innerHTML = '';
+    proveedores.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.nombre;
+        select.appendChild(opt);
+    });
+    // Tabla de proveedores
+    const tbody = document.getElementById('tablaProveedores');
+    tbody.innerHTML = '';
+    proveedores.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p.nombre}</td><td>${p.descripcion || ''}</td>
+            <td>
+                <button class='btn btn-sm btn-warning me-1 btn-edit-proveedor' onclick='editarProveedor(${p.id})' ${!isAdmin ? 'disabled' : ''}>Editar</button>
+                <button class='btn btn-sm btn-danger btn-del-proveedor' onclick='eliminarProveedor(${p.id})' ${!isAdmin ? 'disabled' : ''}>Eliminar</button>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+// --- Calcular comisión y neto ---
+function actualizarComisionYNeto() {
+    const tarjetas = getTarjetas();
+    const id = parseInt(document.getElementById('tarjeta').value);
+    const tarjeta = tarjetas.find(t => t.id === id);
+    const monto = parseFloat(document.getElementById('monto').value) || 0;
+    if (tarjeta) {
+        const comision = tarjeta.comision;
+        const montoComision = monto * comision / 100;
+        document.getElementById('comision').value = comision + '% ($' + montoComision.toFixed(2) + ')';
+        document.getElementById('neto').value = (monto - montoComision).toFixed(2);
+    } else {
+        document.getElementById('comision').value = '';
+        document.getElementById('neto').value = '';
+    }
+}
+
+// --- Registrar venta ---
+document.getElementById('ventaForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const monto = parseFloat(document.getElementById('monto').value);
+    const fecha = document.getElementById('fecha').value;
+    const tarjetaId = parseInt(document.getElementById('tarjeta').value);
+    const tarjetas = getTarjetas();
+    const tarjeta = tarjetas.find(t => t.id === tarjetaId);
+    if (!tarjeta) return;
+    const comision = tarjeta.comision;
+    const neto = monto - (monto * comision / 100);
+    const ventas = getVentas();
+    ventas.push({
+        id: Date.now(),
+        fecha,
+        monto,
+        tarjetaId,
+        tarjetaNombre: tarjeta.nombre,
+        comision,
+        neto
+    });
+    setVentas(ventas);
+    this.reset();
+    document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
+    renderVentas();
+    actualizarComisionYNeto();
+});
+
+document.getElementById('tarjeta').addEventListener('change', actualizarComisionYNeto);
+document.getElementById('monto').addEventListener('input', actualizarComisionYNeto);
+window.addEventListener('DOMContentLoaded', () => {
+    inicializarTarjetas();
+    inicializarProveedores();
+    renderTarjetas();
+    renderProveedores();
+    document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
+    document.getElementById('fechaPago').value = new Date().toISOString().slice(0,10);
+    renderVentas();
+    renderPagos();
+    actualizarComisionYNeto();
+    document.getElementById('filtroMes').value = new Date().toISOString().slice(0,7);
+    document.getElementById('filtroMesPagos').value = new Date().toISOString().slice(0,7);
+    document.getElementById('filtroMesResumen').value = new Date().toISOString().slice(0,7);
+    actualizarResumenFinanciero();
+    updateAdminUI();
+});
+
+document.getElementById('filtroMes').addEventListener('change', renderVentas);
+document.getElementById('filtroMesPagos').addEventListener('change', renderPagos);
+document.getElementById('filtroMesResumen').addEventListener('change', actualizarResumenFinanciero);
+
+// --- Renderizar ventas ---
+function renderVentas() {
+    const ventas = getVentas();
+    const tarjetas = getTarjetas();
+    const tbody = document.getElementById('tablaVentas');
+    const mes = document.getElementById('filtroMes').value;
+    tbody.innerHTML = '';
+    let totalBruto = 0, totalComision = 0, totalNeto = 0;
+    ventas.filter(v => v.fecha.startsWith(mes)).forEach(v => {
+        totalBruto += v.monto;
+        totalComision += v.monto * v.comision / 100;
+        totalNeto += v.neto;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${v.fecha}</td><td>$${v.monto.toFixed(2)}</td><td>${v.tarjetaNombre}</td><td>${v.comision}%</td><td>$${v.neto.toFixed(2)}</td>
+            <td><button class='btn btn-sm btn-danger btn-del-venta' onclick='eliminarVenta(${v.id})' ${!isAdmin ? 'disabled' : ''}>Eliminar</button></td>`;
+        tbody.appendChild(tr);
+    });
+    document.getElementById('totalBruto').textContent = '$' + totalBruto.toFixed(2);
+    document.getElementById('totalComision').textContent = '$' + totalComision.toFixed(2);
+    document.getElementById('totalNeto').textContent = '$' + totalNeto.toFixed(2);
+    
+    // Actualizar resumen financiero
+    actualizarResumenFinanciero();
+}
+
+// --- Eliminar venta ---
+function eliminarVenta(id) {
+    if (!isAdmin) return;
+    if (confirm('¿Eliminar esta venta?')) {
+        let ventas = getVentas();
+        ventas = ventas.filter(v => v.id !== id);
+        setVentas(ventas);
+        renderVentas();
+    }
+}
+
+// --- Gestión de tarjetas ---
+function editarTarjeta(id) {
+    if (!isAdmin) return;
+    const tarjetas = getTarjetas();
+    const t = tarjetas.find(t => t.id === id);
+    if (!t) return;
+    document.getElementById('tarjetaId').value = t.id;
+    document.getElementById('nombreTarjeta').value = t.nombre;
+    document.getElementById('comisionTarjeta').value = t.comision;
+    new bootstrap.Modal(document.getElementById('modalTarjeta')).show();
+}
+function eliminarTarjeta(id) {
+    if (!isAdmin) return;
+    if (confirm('¿Eliminar esta tarjeta/método?')) {
+        let tarjetas = getTarjetas();
+        tarjetas = tarjetas.filter(t => t.id !== id);
+        setTarjetas(tarjetas);
+        renderTarjetas();
+        actualizarComisionYNeto();
+    }
+}
+document.getElementById('formTarjeta').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!isAdmin) return;
+    const id = document.getElementById('tarjetaId').value;
+    const nombre = document.getElementById('nombreTarjeta').value.trim();
+    const comision = parseFloat(document.getElementById('comisionTarjeta').value);
+    let tarjetas = getTarjetas();
+    if (id) {
+        // Editar
+        tarjetas = tarjetas.map(t => t.id == id ? {...t, nombre, comision} : t);
+    } else {
+        // Nuevo
+        const newId = tarjetas.length ? Math.max(...tarjetas.map(t => t.id)) + 1 : 1;
+        tarjetas.push({id: newId, nombre, comision});
+    }
+    setTarjetas(tarjetas);
+    renderTarjetas();
+    actualizarComisionYNeto();
+    document.getElementById('formTarjeta').reset();
+    bootstrap.Modal.getInstance(document.getElementById('modalTarjeta')).hide();
+});
+document.getElementById('modalTarjeta').addEventListener('hidden.bs.modal', function() {
+    document.getElementById('formTarjeta').reset();
+    document.getElementById('tarjetaId').value = '';
+});
+
+// --- Exportar a CSV ---
+document.getElementById('btnExportar').addEventListener('click', function() {
+    const ventas = getVentas();
+    const mes = document.getElementById('filtroMes').value;
+    const ventasFiltradas = ventas.filter(v => v.fecha.startsWith(mes));
+    let csv = 'Fecha,Monto,Metodo/ Tarjeta,Comision (%),Neto\n';
+    ventasFiltradas.forEach(v => {
+        csv += `${v.fecha},${v.monto.toFixed(2)},${v.tarjetaNombre},${v.comision},${v.neto.toFixed(2)}\n`;
+    });
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ventas_' + mes + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+// --- Login de administrador ---
+document.getElementById('btnAdminLogin').addEventListener('click', function() {
+    document.getElementById('adminPassword').value = '';
+    document.getElementById('adminLoginError').textContent = '';
+    new bootstrap.Modal(document.getElementById('modalAdminLogin')).show();
+});
+document.getElementById('formAdminLogin').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const pass = document.getElementById('adminPassword').value;
+    if (pass === getAdminPass()) {
+        isAdmin = true;
+        updateAdminUI();
+        bootstrap.Modal.getInstance(document.getElementById('modalAdminLogin')).hide();
+    } else {
+        document.getElementById('adminLoginError').textContent = 'Contraseña incorrecta';
+    }
+});
+document.getElementById('btnAdminLogout').addEventListener('click', function() {
+    isAdmin = false;
+    updateAdminUI();
+});
+
+// --- Cambiar contraseña admin ---
+const btnAdminPass = document.createElement('button');
+btnAdminPass.className = 'btn btn-outline-warning btn-sm ms-2 d-none';
+btnAdminPass.id = 'btnAdminPass';
+btnAdminPass.textContent = 'Cambiar Contraseña Admin';
+document.querySelector('.container .d-flex').appendChild(btnAdminPass);
+btnAdminPass.addEventListener('click', function() {
+    document.getElementById('formAdminPass').reset();
+    document.getElementById('adminPassError').textContent = '';
+    new bootstrap.Modal(document.getElementById('modalAdminPass')).show();
+});
+document.getElementById('formAdminPass').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const actual = document.getElementById('adminPassActual').value;
+    const nueva = document.getElementById('adminPassNueva').value;
+    if (actual !== getAdminPass()) {
+        document.getElementById('adminPassError').textContent = 'Contraseña actual incorrecta';
+        return;
+    }
+    if (nueva.length < 4) {
+        document.getElementById('adminPassError').textContent = 'La nueva contraseña debe tener al menos 4 caracteres';
+        return;
+    }
+    setAdminPass(nueva);
+    document.getElementById('adminPassError').textContent = '';
+    bootstrap.Modal.getInstance(document.getElementById('modalAdminPass')).hide();
+    alert('Contraseña cambiada correctamente.');
+});
+
+// --- Gestión de proveedores ---
+function editarProveedor(id) {
+    if (!isAdmin) return;
+    const proveedores = getProveedores();
+    const p = proveedores.find(p => p.id === id);
+    if (!p) return;
+    document.getElementById('proveedorId').value = p.id;
+    document.getElementById('nombreProveedor').value = p.nombre;
+    document.getElementById('descripcionProveedor').value = p.descripcion || '';
+    new bootstrap.Modal(document.getElementById('modalProveedor')).show();
+}
+function eliminarProveedor(id) {
+    if (!isAdmin) return;
+    if (confirm('¿Eliminar este tipo de proveedor?')) {
+        let proveedores = getProveedores();
+        proveedores = proveedores.filter(p => p.id !== id);
+        setProveedores(proveedores);
+        renderProveedores();
+    }
+}
+document.getElementById('formProveedor').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!isAdmin) return;
+    const id = document.getElementById('proveedorId').value;
+    const nombre = document.getElementById('nombreProveedor').value.trim();
+    const descripcion = document.getElementById('descripcionProveedor').value.trim();
+    let proveedores = getProveedores();
+    if (id) {
+        // Editar
+        proveedores = proveedores.map(p => p.id == id ? {...p, nombre, descripcion} : p);
+    } else {
+        // Nuevo
+        const newId = proveedores.length ? Math.max(...proveedores.map(p => p.id)) + 1 : 1;
+        proveedores.push({id: newId, nombre, descripcion});
+    }
+    setProveedores(proveedores);
+    renderProveedores();
+    document.getElementById('formProveedor').reset();
+    bootstrap.Modal.getInstance(document.getElementById('modalProveedor')).hide();
+});
+document.getElementById('modalProveedor').addEventListener('hidden.bs.modal', function() {
+    document.getElementById('formProveedor').reset();
+    document.getElementById('proveedorId').value = '';
+});
+
+// --- Registrar pago a proveedor ---
+document.getElementById('pagoForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const monto = parseFloat(document.getElementById('montoPago').value);
+    const fecha = document.getElementById('fechaPago').value;
+    const proveedorId = parseInt(document.getElementById('proveedor').value);
+    const descripcion = document.getElementById('descripcionPago').value.trim();
+    const proveedores = getProveedores();
+    const proveedor = proveedores.find(p => p.id === proveedorId);
+    if (!proveedor) return;
+    const pagos = getPagos();
+    pagos.push({
+        id: Date.now(),
+        fecha,
+        monto,
+        proveedorId,
+        proveedorNombre: proveedor.nombre,
+        descripcion
+    });
+    setPagos(pagos);
+    this.reset();
+    document.getElementById('fechaPago').value = new Date().toISOString().slice(0,10);
+    renderPagos();
+});
+
+// --- Renderizar pagos ---
+function renderPagos() {
+    const pagos = getPagos();
+    const tbody = document.getElementById('tablaPagos');
+    const mes = document.getElementById('filtroMesPagos').value;
+    tbody.innerHTML = '';
+    let totalPagos = 0;
+    pagos.filter(p => p.fecha.startsWith(mes)).forEach(p => {
+        totalPagos += p.monto;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p.fecha}</td><td>$${p.monto.toFixed(2)}</td><td>${p.proveedorNombre}</td><td>${p.descripcion || ''}</td>
+            <td><button class='btn btn-sm btn-danger btn-del-pago' onclick='eliminarPago(${p.id})' ${!isAdmin ? 'disabled' : ''}>Eliminar</button></td>`;
+        tbody.appendChild(tr);
+    });
+    document.getElementById('totalPagos').textContent = '$' + totalPagos.toFixed(2);
+    
+    // Actualizar resumen financiero
+    actualizarResumenFinanciero();
+}
+
+// --- Eliminar pago ---
+function eliminarPago(id) {
+    if (!isAdmin) return;
+    if (confirm('¿Eliminar este pago?')) {
+        let pagos = getPagos();
+        pagos = pagos.filter(p => p.id !== id);
+        setPagos(pagos);
+        renderPagos();
+    }
+}
+
+// --- Exportar pagos a CSV ---
+document.getElementById('btnExportarPagos').addEventListener('click', function() {
+    const pagos = getPagos();
+    const mes = document.getElementById('filtroMesPagos').value;
+    const pagosFiltrados = pagos.filter(p => p.fecha.startsWith(mes));
+    let csv = 'Fecha,Monto,Tipo de Proveedor,Descripcion\n';
+    pagosFiltrados.forEach(p => {
+        csv += `${p.fecha},${p.monto.toFixed(2)},${p.proveedorNombre},${p.descripcion || ''}\n`;
+    });
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'pagos_' + mes + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+// --- Exportar resumen a CSV ---
+document.getElementById('btnExportarResumen').addEventListener('click', function() {
+    const ventas = getVentas();
+    const pagos = getPagos();
+    const mes = document.getElementById('filtroMesResumen').value;
+    const ventasFiltradas = ventas.filter(v => v.fecha.startsWith(mes));
+    const pagosFiltrados = pagos.filter(p => p.fecha.startsWith(mes));
+    let csv = 'Fecha,Monto,Concepto,Detalle\n';
+    ventasFiltradas.forEach(v => {
+        csv += `${v.fecha},${v.monto.toFixed(2)},Ventas Brutas,Total de ventas registradas\n`;
+    });
+    pagosFiltrados.forEach(p => {
+        csv += `${p.fecha},${p.monto.toFixed(2)},Pagos a Proveedores,Total de pagos realizados\n`;
+    });
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'resumen_' + mes + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+// --- Calcular y mostrar resumen financiero ---
+function actualizarResumenFinanciero() {
+    const ventas = getVentas();
+    const pagos = getPagos();
+    const mes = document.getElementById('filtroMesResumen').value;
+    
+    // Calcular ventas del mes
+    const ventasMes = ventas.filter(v => v.fecha.startsWith(mes));
+    const ventasBrutas = ventasMes.reduce((sum, v) => sum + v.monto, 0);
+    const comisiones = ventasMes.reduce((sum, v) => sum + (v.monto * v.comision / 100), 0);
+    const gananciasNetas = ventasBrutas - comisiones;
+    
+    // Calcular pagos del mes
+    const pagosMes = pagos.filter(p => p.fecha.startsWith(mes));
+    const totalPagos = pagosMes.reduce((sum, p) => sum + p.monto, 0);
+    
+    // Calcular balance final
+    const balanceFinal = gananciasNetas - totalPagos;
+    
+    // Actualizar tarjetas principales
+    document.getElementById('gananciasNetas').textContent = '$' + gananciasNetas.toFixed(2);
+    document.getElementById('totalPagosResumen').textContent = '$' + totalPagos.toFixed(2);
+    document.getElementById('balanceFinal').textContent = '$' + balanceFinal.toFixed(2);
+    
+    // Actualizar tabla detallada
+    document.getElementById('ventasBrutasResumen').textContent = '$' + ventasBrutas.toFixed(2);
+    document.getElementById('comisionesResumen').textContent = '$' + comisiones.toFixed(2);
+    document.getElementById('gananciasNetasDetalle').textContent = '$' + gananciasNetas.toFixed(2);
+    document.getElementById('pagosProveedoresResumen').textContent = '$' + totalPagos.toFixed(2);
+    document.getElementById('balanceFinalDetalle').textContent = '$' + balanceFinal.toFixed(2);
+    
+    // Cambiar color del balance final según sea positivo o negativo
+    const balanceElement = document.getElementById('balanceFinal');
+    const balanceDetalleElement = document.getElementById('balanceFinalDetalle');
+    if (balanceFinal >= 0) {
+        balanceElement.parentElement.className = 'card bg-success text-white';
+        balanceDetalleElement.parentElement.className = 'table-success';
+    } else {
+        balanceElement.parentElement.className = 'card bg-danger text-white';
+        balanceDetalleElement.parentElement.className = 'table-danger';
+    }
+}
+</script>
+</body>
+</html>
